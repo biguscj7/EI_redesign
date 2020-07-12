@@ -1,0 +1,17 @@
+{
+    "abbreviation": "EDT",
+    "client_ip": "65.184.155.86",
+    "datetime": "2020-07-11T20:56:35.198217-04:00",
+    "day_of_week": 6,
+    "day_of_year": 193,
+    "dst": true,
+    "dst_from": "2020-03-08T07:00:00+00:00",
+    "dst_offset": 3600,
+    "dst_until": "2020-11-01T06:00:00+00:00",
+    "raw_offset": -18000,
+    "timezone": "America/New_York",
+    "unixtime": 1594515395,
+    "utc_datetime": "2020-07-12T00:56:35.198217+00:00",
+    "utc_offset": "-04:00",
+    "week_number": 28
+}
