@@ -25,34 +25,18 @@ def get_tides():
     yr, mo, dy, _, _, _, _, _ = utime.localtime()
     yr_str = str(yr)
     print(yr_str)
-    mo_str = pad_date(mo)
+    mo_str = _pad_date(mo)
     print(mo_str)
-    dy_str = pad_date(dy)
+    dy_str = _pad_date(dy)
     print(dy_str)
 
     resp = urequests.get('https://tidesandcurrents.noaa.gov/api/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={}{}{}&range=72&datum=MLLW&station=8656467&time_zone=lst_ldt&units=english&interval=hilo&format=json'.format(yr_str, mo_str, dy_str))
 
     if resp.status_code == 200:
-        long_list = tide_resp_to_list(ujson.loads(resp.content))
-        return long_list
+        long_list = _tide_resp_to_list(ujson.loads(resp.content))
+        return trim_list(long_list)
     else:
         print('Response code: ' + str(resp.status_code) + '\n')
-
-
-def pad_date(val):
-    """adds a zero to date if single digit"""
-    if val < 10:
-        return '0' + str(val)
-    else:
-        return str(val)
-
-def tide_resp_to_list(resp_content):
-    """Takes response from CO-OPS and returns list of tuples"""
-    resp_list = []
-    for x in resp_content['predictions']:
-        tmstp = utime.mktime((int(x['t'][0:4]), int(x['t'][5:7]), int(x['t'][8:10]), int(x['t'][11:13]), int(x['t'][14:]), 0, 0, 0))
-        resp_list.append((x['type'], tmstp))
-    return resp_list
 
 
 def trim_list(full_list):
@@ -70,19 +54,34 @@ def trim_list(full_list):
         full_list.pop(x)
     return full_list
 
+
+def _pad_date(val):
+    """adds a zero to date if single digit"""
+    if val < 10:
+        return '0' + str(val)
+    else:
+        return str(val)
+
+
+def _tide_resp_to_list(resp_content):
+    """Takes response from CO-OPS and returns list of tuples"""
+    resp_list = []
+    for x in resp_content['predictions']:
+        tmstp = utime.mktime((int(x['t'][0:4]), int(x['t'][5:7]), int(x['t'][8:10]), int(x['t'][11:13]), int(x['t'][14:]), 0, 0, 0))
+        resp_list.append((x['type'], tmstp))
+    return resp_list
+
+
 def tide_display(tide_list):
     """Will use the tide list to display the current tide status"""
     lcd = CharLCD(rs=4, en=5, d4=15, d5=0, d6=16, d7=2)
-    green_pin = PWM(Pin(12), freq=1000, duty=1000)
-    blue_pin = PWM(Pin(14), freq=1000, duty=1000)
-    red_pin = PWM(Pin(13), freq=1000, duty=1000)
 
     # last tide display
-    red_pin.duty(0)
+    color_lcd('purple')
     lcd.clear
     _, _, _, hr, min, _, _, _ = utime.localtime(tide_list[0][1])
-    hr = pad_date(hr)
-    min = pad_date(min)
+    hr = _pad_date(hr)
+    min = _pad_date(min)
     if tide_list[0][0] == 'H':
         lcd.message('FALLING tide', 2)
         lcd.set_line(1)
@@ -93,13 +92,13 @@ def tide_display(tide_list):
         lcd.message('Low tide @ {}{}L'.format(hr, min))
     utime.sleep(5)
     lcd.clear()
-    red_pin.duty(1000)
+    color_lcd('black')
 
     # next tide display
-    blue_pin.duty(0)
+    color_lcd('blue')
     _, _, _, hr, min, _, _, _ = utime.localtime(tide_list[1][1])
-    hr = pad_date(hr)
-    min = pad_date(min)
+    hr = _pad_date(hr)
+    min = _pad_date(min)
     if tide_list[1][0] == 'H':
         lcd.message('RISING tide', 2)
         lcd.set_line(1)
@@ -110,4 +109,31 @@ def tide_display(tide_list):
         lcd.message('Low tide @ {}{}L'.format(hr, min))
     utime.sleep(5)
     lcd.clear()
-    blue_pin.duty(1000)
+    color_lcd('black')
+
+
+def color_lcd(color):
+    """Accepts a color and sets the display to that color, reminder that duty cycles are 'backwards'"""
+    color_dict = {
+        'green': (1000, 0, 1000),
+        'blue': (1000, 1000, 0),
+        'red': (0, 1000, 1000),
+        'yellow': (0, 600, 1000),
+        'teal': (500, 500, 1000),
+        'black': (1000, 1000, 1000),
+        'purple': (500, 1000, 500),
+        'orange': (0, 800, 1000),
+    }
+
+
+    if type(color) == str:
+        color = color.lower()
+        red_pin.duty(color_dict[color][0])
+        green_pin.duty(color_dict[color][1])
+        blue_pin.duty(color_dict[color][2])
+    elif type(color) == tuple:
+        red_pin.duty(color[0])
+        green_pin.duty(color[1])
+        blue_pin.duty(color[2])
+    else:
+        print('Entry not recognized, enter valid color, or RGB tuple')
