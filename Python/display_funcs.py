@@ -20,8 +20,14 @@ import utime
 from LCD import CharLCD
 from machine import Pin, PWM, RTC
 
-def get_tides():
+def get_tides(station):
     """Hits api for 3 days of tides, returns a list of tuples w/ hi/lo and timestamp"""
+    url_dict = {
+        'beaufort': 'https://tidesandcurrents.noaa.gov/api/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={}{}{}&range=72&datum=MLLW&station=8656467&time_zone=lst_ldt&units=english&interval=hilo&format=json',
+        'bogue':  'https://tidesandcurrents.noaa.gov/api/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={}{}{}&range=72&datum=MLLW&station=TEC2837&time_zone=lst_ldt&units=english&interval=hilo&format=json',
+        'spooners': 'https://tidesandcurrents.noaa.gov/api/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={}{}{}&range=72&datum=MLLW&station=8656467&time_zone=lst_ldt&units=english&interval=hilo&format=json',
+    }
+
     yr, mo, dy, _, _, _, _, _ = utime.localtime()
     yr_str = str(yr)
     print(yr_str)
@@ -30,16 +36,16 @@ def get_tides():
     dy_str = _pad_date(dy)
     print(dy_str)
 
-    resp = urequests.get('https://tidesandcurrents.noaa.gov/api/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={}{}{}&range=72&datum=MLLW&station=8656467&time_zone=lst_ldt&units=english&interval=hilo&format=json'.format(yr_str, mo_str, dy_str))
+    resp = urequests.get(url_dict[station].format(yr_str, mo_str, dy_str))
 
     if resp.status_code == 200:
         long_list = _tide_resp_to_list(ujson.loads(resp.content))
-        return trim_list(long_list)
+        return {station: _trim_list(long_list)}
     else:
         print('Response code: ' + str(resp.status_code) + '\n')
 
 
-def trim_list(full_list):
+def _trim_list(full_list):
     """Review list of tuples and remove all but most recent past event"""
     timestamp = utime.time()
     print(timestamp)
@@ -72,41 +78,35 @@ def _tide_resp_to_list(resp_content):
     return resp_list
 
 
-def tide_display(tide_list):
+def tide_display(tide_dict):
     """Will use the tide list to display the current tide status"""
     lcd = CharLCD(rs=4, en=5, d4=15, d5=0, d6=16, d7=2)
 
-    # last tide display
-    color_lcd('purple')
-    lcd.clear
-    _, _, _, hr, min, _, _, _ = utime.localtime(tide_list[0][1])
-    hr = _pad_date(hr)
-    min = _pad_date(min)
-    if tide_list[0][0] == 'H':
-        lcd.message('FALLING tide', 2)
-        lcd.set_line(1)
-        lcd.message('Hi tide @ {}{}L'.format(hr, min))
-    elif tide_list[0][0] == 'L':
-        lcd.message('RISING tide', 2)
-        lcd.set_line(1)
-        lcd.message('Low tide @ {}{}L'.format(hr, min))
-    utime.sleep(5)
-    lcd.clear()
-    color_lcd('black')
+    station_formal = {
+        'bogue': 'Bogue Inlet',
+        'spooners': 'Spooner\'s Creek',
+        'beaufort': 'Beaufort Marina'
+    }
 
-    # next tide display
-    color_lcd('blue')
-    _, _, _, hr, min, _, _, _ = utime.localtime(tide_list[1][1])
-    hr = _pad_date(hr)
-    min = _pad_date(min)
-    if tide_list[1][0] == 'H':
-        lcd.message('RISING tide', 2)
-        lcd.set_line(1)
-        lcd.message('Hi tide @ {}{}L'.format(hr, min))
-    elif tide_list[1][0] == 'L':
-        lcd.message('FALLING tide', 2)
-        lcd.set_line(1)
-        lcd.message('Low tide @ {}{}L'.format(hr, min))
+    station = list(tide_dict.keys())[0]
+
+    # last tide display
+    if tide_dict[station][0][0] == 'H':
+        color_lcd('green')
+    elif tide_dict[station][0][0] == 'L':
+        color_lcd('blue')
+
+    _, _, _, hr_1, min_1, _, _, _ = utime.localtime(tide_dict[station][0][1])
+    _, _, _, hr_2, min_2, _, _, _ = utime.localtime(tide_dict[station][1][1])
+    hr_1 = _pad_date(hr_1)
+    hr_2 = _pad_date(hr_2)
+    min_1 = _pad_date(min_1)
+    min_2 = _pad_date(min_2)
+
+    lcd.clear
+    lcd.message(station_formal[station], 2)
+    lcd.set_line(1)
+    lcd.message('Hi:{}{}  Lo:{}{}'.format(hr_1, min_1, hr_2, min_2))
     utime.sleep(5)
     lcd.clear()
     color_lcd('black')
@@ -125,6 +125,10 @@ def color_lcd(color):
         'orange': (0, 800, 1000),
     }
 
+    # instances of PWM pins for LCD color
+    green_pin = PWM(Pin(12), freq=1000, duty=1000)
+    blue_pin = PWM(Pin(14), freq=1000, duty=1000)
+    red_pin = PWM(Pin(13), freq=1000, duty=1000)
 
     if type(color) == str:
         color = color.lower()

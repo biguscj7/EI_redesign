@@ -20,7 +20,7 @@ def wifi_connect():
     wlan.active(True)
     if not wlan.isconnected():
         print('connecting to network...')
-        wlan.connect('Las Palmas', 'pollywolly')
+        wlan.connect('BIGUS', 'OzoF32*kMJ3gYdCqxmwpxnU&$@*2xM1o')
         while not wlan.isconnected():
             pass
     print('network config:', wlan.ifconfig())
@@ -70,17 +70,15 @@ def set_rtc():
     rtc.datetime((int(dt[0:4]), int(dt[5:7]), int(dt[8:10]), 0, int(dt[11:13]), int(dt[14:16]), int(dt[17:19]), 0))
 
 
-def lcd_setup():
-    """Creates global variables that will be used for LCD control"""
-    # instantiates for text
-    global lcd = CharLCD(rs=4, en=5, d4=15, d5=0, d6=16, d7=2)
-    # setup for color
-    global green_pin = PWM(Pin(12), freq=1000, duty=1000)
-    global blue_pin = PWM(Pin(14), freq=1000, duty=1000)
-    global red_pin = PWM(Pin(13), freq=1000, duty=1000)
 
-lcd_setup()
+# instantiates for text
+lcd = CharLCD(rs=4, en=5, d4=15, d5=0, d6=16, d7=2)
+# instances of PWM pins for LCD color
+green_pin = PWM(Pin(12), freq=1000, duty=1000)
+blue_pin = PWM(Pin(14), freq=1000, duty=1000)
+red_pin = PWM(Pin(13), freq=1000, duty=1000)
+
+# Functions run at startup
 startup_network_disp()
 set_rtc()
-
 gc.collect()
