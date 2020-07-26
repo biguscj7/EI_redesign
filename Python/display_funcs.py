@@ -20,35 +20,46 @@ import utime
 from LCD import CharLCD
 from machine import Pin, PWM, RTC
 
-def get_tides(station):
+def get_tides(station, lcd, pin0):
     """Hits api for 3 days of tides, returns a list of tuples w/ hi/lo and timestamp"""
     url_dict = {
-        'beaufort': 'https://tidesandcurrents.noaa.gov/api/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={}{}{}&range=72&datum=MLLW&station=8656467&time_zone=lst_ldt&units=english&interval=hilo&format=json',
+        'beaufort': 'https://tidesandcurrents.noaa.gov/api/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={}{}{}&range=72&datum=MLLW&station=8656483&time_zone=lst_ldt&units=english&interval=hilo&format=json',
         'bogue':  'https://tidesandcurrents.noaa.gov/api/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={}{}{}&range=72&datum=MLLW&station=TEC2837&time_zone=lst_ldt&units=english&interval=hilo&format=json',
         'spooners': 'https://tidesandcurrents.noaa.gov/api/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={}{}{}&range=72&datum=MLLW&station=8656467&time_zone=lst_ldt&units=english&interval=hilo&format=json',
     }
 
     yr, mo, dy, _, _, _, _, _ = utime.localtime()
     yr_str = str(yr)
-    print(yr_str)
+    #print(yr_str)
     mo_str = _pad_date(mo)
-    print(mo_str)
+    #print(mo_str)
     dy_str = _pad_date(dy)
-    print(dy_str)
+    #print(dy_str)
+
+    color_lcd('yellow')
+    lcd.clear
+    lcd.message("Getting tides:")
+    lcd.set_line(1)
+    lcd.message(station)
+    pin0.value(1)
 
     resp = urequests.get(url_dict[station].format(yr_str, mo_str, dy_str))
 
+    lcd.clear()
+    color_lcd('black')
+
     if resp.status_code == 200:
+        print("Updated data for: " + station)
         long_list = _tide_resp_to_list(ujson.loads(resp.content))
-        return {station: _trim_list(long_list)}
+        return {station: trim_list(long_list)}
     else:
         print('Response code: ' + str(resp.status_code) + '\n')
 
 
-def _trim_list(full_list):
+def trim_list(full_list):
     """Review list of tuples and remove all but most recent past event"""
+    print("Executing list trim")
     timestamp = utime.time()
-    print(timestamp)
     first_future = 0
 
     for x in range(len(full_list)):
@@ -78,38 +89,44 @@ def _tide_resp_to_list(resp_content):
     return resp_list
 
 
-def tide_display(tide_dict):
+def tide_display(tide_dict, lcd, pin0):
     """Will use the tide list to display the current tide status"""
-    lcd = CharLCD(rs=4, en=5, d4=15, d5=0, d6=16, d7=2)
-
     station_formal = {
         'bogue': 'Bogue Inlet',
         'spooners': 'Spooner\'s Creek',
         'beaufort': 'Beaufort Marina'
     }
 
-    station = list(tide_dict.keys())[0]
+    #print(tide_dict)
 
-    # last tide display
-    if tide_dict[station][0][0] == 'H':
-        color_lcd('green')
-    elif tide_dict[station][0][0] == 'L':
-        color_lcd('blue')
+    for station in tide_dict.keys():
+        _, _, _, hr_1, min_1, _, _, _ = utime.localtime(tide_dict[station][0][1])
+        _, _, _, hr_2, min_2, _, _, _ = utime.localtime(tide_dict[station][1][1])
+        hr_1 = _pad_date(hr_1)
+        hr_2 = _pad_date(hr_2)
+        min_1 = _pad_date(min_1)
+        min_2 = _pad_date(min_2)
 
-    _, _, _, hr_1, min_1, _, _, _ = utime.localtime(tide_dict[station][0][1])
-    _, _, _, hr_2, min_2, _, _, _ = utime.localtime(tide_dict[station][1][1])
-    hr_1 = _pad_date(hr_1)
-    hr_2 = _pad_date(hr_2)
-    min_1 = _pad_date(min_1)
-    min_2 = _pad_date(min_2)
-
-    lcd.clear
-    lcd.message(station_formal[station], 2)
-    lcd.set_line(1)
-    lcd.message('Hi:{}{}  Lo:{}{}'.format(hr_1, min_1, hr_2, min_2))
-    utime.sleep(5)
-    lcd.clear()
-    color_lcd('black')
+        if tide_dict[station][0][0] == 'H':
+            color_lcd('green')
+            lcd.clear
+            lcd.message(station_formal[station], 2)
+            lcd.set_line(1)
+            lcd.message('Hi:{}{}  Lo:{}{}'.format(hr_1, min_1, hr_2, min_2))
+            pin0.value(1)
+            utime.sleep(5)
+            lcd.clear()
+            color_lcd('black')
+        elif tide_dict[station][0][0] == 'L':
+            color_lcd('blue')
+            lcd.clear
+            lcd.message(station_formal[station], 2)
+            lcd.set_line(1)
+            lcd.message('Lo:{}{}  Hi:{}{}'.format(hr_1, min_1, hr_2, min_2))
+            pin0.value(1)
+            utime.sleep(5)
+            lcd.clear()
+            color_lcd('black')
 
 
 def color_lcd(color):

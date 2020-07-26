@@ -11,7 +11,6 @@ import df
 
 def _check_networks():
     """Checks wifi networks in range and produces an intersection of sets on programmed networks"""
-    global wlan
     my_avail_nets = []
     avail_nets = wlan.scan()
     global networks
@@ -110,30 +109,17 @@ def set_rtc():
             return False
 
 
-def trim_master():
+def trim_master(station):
     """Used to trim list in master dictionary"""
     global station_data
 
     for station, tide_list in station_data.items():
         if tide_list[1][1] < utime.time():
             update_list = df.trim_list(tide_list)
-            station_data.update({station: update_list})
-
-
-def periodic_update():
-    """Intended to call for update of RTC and tide data"""
-    print("Tide time trigger update")
-    global station_data
-
-    for name in station_data.keys():
-        tide_resp = df.get_tides(name, lcd)
-        if type(tide_resp) == dict:
-            station_data.update(tide_resp)
+            station_data.update({station, update_list})
 
 if __name__ == '__main__':
     print("\nBooting from boot.py")
-    pin0 = Pin(0, Pin.OUT)
-    pin0.value(1)
 
     networks = {
         'BIGUS': 'OzoF32*kMJ3gYdCqxmwpxnU&$@*2xM1o',
@@ -167,27 +153,10 @@ if __name__ == '__main__':
     station_data = {'bogue': None, 'spooners': None, 'beaufort': None}
 
     for name in station_data.keys():
-        tide_resp = df.get_tides(name, lcd, pin0)
-        if type(tide_resp) == dict:
-            station_data.update(tide_resp)
+        station_data.update(df.get_tides(name, lcd))
 
     while True:
-        df.tide_display(station_data, lcd, pin0)
+        df.tide_display(station_data, lcd)
         for name in station_data.keys():
-            trim_master()
-
-        _, _, _, hr, minute, sec, _, _ = utime.localtime()
-
-        # Attempt rtc update every 8 hours
-        if hr in [0, 8, 16] and minute == 0 and sec < 30:
-            if not wlan.isconnected():
-                wifi_connect()
-            print("Periodic time update")
-            set_rtc()
-
-        # Attempt tide update every 6 hours
-        if hr in [0, 2, 4, 22] and minute == 0 and sec < 30:
-            if not wlan.isconnected():
-                wifi_connect()
-            print("Periodic tide update")
-            periodic_update()
+            print("Trimming")
+            trim_master(name)
