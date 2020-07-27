@@ -4,13 +4,13 @@ Working functions for display
 Currently functional:
 Hits API and returns a list of tuples with 'H' or 'L' and timestamp
 Hits API and sets RTC time to New York city time
+Rotates display of last tide and next tide with station name (yellow = falling / green = rising)
 
-
-IDEA - Do hi/lo and lo high for each location use green for rising and red for falling
-lcd.message('Beaufort tides', 2)
-lcd.set_line(1)
-lcd.message('Hi:0223  Lo:0000')
-
+Future function:
+Add ability to pull weather from Duke Marine Lab and display as part of rotation
+Create a Class for handling display rotations
+Learn async to allow work to continue while screen is static
+Clean up issues with failed updates
 """
 
 
@@ -28,7 +28,8 @@ def get_tides(station, lcd, pin0):
         'spooners': 'https://tidesandcurrents.noaa.gov/api/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={}{}{}&range=72&datum=MLLW&station=8656467&time_zone=lst_ldt&units=english&interval=hilo&format=json',
     }
 
-    yr, mo, dy, _, _, _, _, _ = utime.localtime()
+    day_ago = utime.time() - 86400
+    yr, mo, dy, _, _, _, _, _ = utime.localtime(day_ago)
     yr_str = str(yr)
     #print(yr_str)
     mo_str = _pad_date(mo)
@@ -62,6 +63,7 @@ def trim_list(full_list):
     timestamp = utime.time()
     first_future = 0
 
+    # believe this broke on update at midnight as it didn't have a previous tide
     for x in range(len(full_list)):
         first_future = x
         if full_list[x][1] > timestamp:
@@ -108,23 +110,23 @@ def tide_display(tide_dict, lcd, pin0):
         min_2 = _pad_date(min_2)
 
         if tide_dict[station][0][0] == 'H':
-            color_lcd('green')
+            color_lcd('yellow')
             lcd.clear
             lcd.message(station_formal[station], 2)
             lcd.set_line(1)
             lcd.message('Hi:{}{}  Lo:{}{}'.format(hr_1, min_1, hr_2, min_2))
             pin0.value(1)
-            utime.sleep(5)
+            utime.sleep(6)
             lcd.clear()
             color_lcd('black')
         elif tide_dict[station][0][0] == 'L':
-            color_lcd('blue')
+            color_lcd('green')
             lcd.clear
             lcd.message(station_formal[station], 2)
             lcd.set_line(1)
             lcd.message('Lo:{}{}  Hi:{}{}'.format(hr_1, min_1, hr_2, min_2))
             pin0.value(1)
-            utime.sleep(5)
+            utime.sleep(6)
             lcd.clear()
             color_lcd('black')
 
@@ -140,6 +142,7 @@ def color_lcd(color):
         'black': (1000, 1000, 1000),
         'purple': (500, 1000, 500),
         'orange': (0, 800, 1000),
+        'white': (0, 0, 0),
     }
 
     # instances of PWM pins for LCD color
@@ -157,4 +160,4 @@ def color_lcd(color):
         green_pin.duty(color[1])
         blue_pin.duty(color[2])
     else:
-        print('Entry not recognized, enter valid color, or RGB tuple')
+        print('Entry not recognized, enter valid color, or RGB tuple')d

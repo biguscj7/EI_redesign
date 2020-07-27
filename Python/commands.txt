@@ -1,0 +1,45 @@
+From working directory : /Users/MarkNyberg/Library/Python/2.7/lib/python/site-packages/ampy
+python cli.py -p /dev/tty.SLAB_USBtoUART put ~/Arduino/EI_redesign/Python/display_build.py main.py
+python cli.py -p /dev/tty.SLAB_USBtoUART put ~/Arduino/EI_redesign/Python/display_funcs.py df.py
+
+For connecting via serial interface :
+screen /dev/tty.SLAB_USBtoUART 115200
+
+URLs for met data:
+https://tidesandcurrents.noaa.gov/api/datagetter?product=air_pressure&application=NOS.COOPS.TAC.MET&date=latest&station=8656483&time_zone=lst_ldt&units=english&format=json
+
+{"metadata":{"id":"8656483","name":"Beaufort, Duke Marine Lab","lat":"34.7200","lon":"-76.6700"},"data":[{"t":"2020-07-26 19:48", "v":"1018.6", "f":"0,0,0"}]}
+
+https://tidesandcurrents.noaa.gov/api/datagetter?product=wind&application=NOS.COOPS.TAC.MET&date=latest&station=8656483&time_zone=lst_ldt&units=english&format=json
+
+{"metadata":{"id":"8656483","name":"Beaufort, Duke Marine Lab","lat":"34.7200","lon":"-76.6700"},"data":[{"t":"2020-07-26 19:48", "s":"5.56", "d":"226.10", "dr":"SW", "g":"10.43", "f":"0,0"}]}
+
+https://tidesandcurrents.noaa.gov/api/datagetter?product=air_temperature&application=NOS.COOPS.TAC.MET&date=latest&station=8656483&time_zone=lst_ldt&units=english&format=json
+
+{"metadata":{"id":"8656483","name":"Beaufort, Duke Marine Lab","lat":"34.7200","lon":"-76.6700"},"data":[{"t":"2020-07-26 19:48", "v":"84.1", "f":"0,0,0"}]}
+
+
+def get_wx():
+    """This function queries for latest weather from Beaufort Marine Lab and parses the result"""
+    all_wind = urequests.get('https://tidesandcurrents.noaa.gov/api/datagetter?product=wind'
+                             '&application=NOS.COOPS.TAC.MET&date=latest&station=8656483&time_zone=lst_ldt'
+                             '&units=english&format=json')
+    wind_dict = ujson.loads(all_wind.content)
+
+    all_temp = urequests.get('https://tidesandcurrents.noaa.gov/api/datagetter?product=air_temperature'
+                             '&application=NOS.COOPS.TAC.MET&date=latest&station=8656483&time_zone=lst_ldt'
+                             '&units=english&format=json')
+    temp_dict = ujson.loads(all_temp.content)
+
+    all_baro = urequests.get('https://tidesandcurrents.noaa.gov/api/datagetter?product=air_pressure'
+                             '&application=NOS.COOPS.TAC.MET&date=latest&station=8656483&time_zone=lst_ldt'
+                             '&units=english&format=json')
+    baro_dict = ujson.loads(all_baro.content)
+
+    # assuming that all are the same despite different queries, could query again if timestamp doesn't match
+    pass
+
+
+def display_wx():
+    """Displays weather data from dictionary"""
+    pass

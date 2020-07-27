@@ -1,3 +1,9 @@
+"""
+This file should be uploaded to MCU as 'boot.py.' It will run every time the MCU is booted.
+"""
+
+
+
 # This file is executed on every boot (including wake-boot from deepsleep)
 from machine import RTC, PWM, Pin, Timer
 import network
@@ -120,8 +126,8 @@ def trim_master():
             station_data.update({station: update_list})
 
 
-def periodic_update():
-    """Intended to call for update of RTC and tide data"""
+def tide_update():
+    """Updates tide data from NOAA"""
     print("Tide time trigger update")
     global station_data
 
@@ -129,6 +135,8 @@ def periodic_update():
         tide_resp = df.get_tides(name, lcd)
         if type(tide_resp) == dict:
             station_data.update(tide_resp)
+
+
 
 if __name__ == '__main__':
     print("\nBooting from boot.py")
@@ -179,15 +187,18 @@ if __name__ == '__main__':
         _, _, _, hr, minute, sec, _, _ = utime.localtime()
 
         # Attempt rtc update every 8 hours
-        if hr in [0, 8, 16] and minute == 0 and sec < 30:
+        if hr in [0, 4, 8, 12, 16, 20] and minute == 0 and sec < 30:
             if not wlan.isconnected():
                 wifi_connect()
             print("Periodic time update")
             set_rtc()
 
         # Attempt tide update every 6 hours
-        if hr in [0, 2, 4, 22] and minute == 0 and sec < 30:
+        if hr in [0, 2, 4, 22] and minute == 10 and sec < 30:
             if not wlan.isconnected():
                 wifi_connect()
             print("Periodic tide update")
-            periodic_update()
+            tide_update()
+
+        if hr in [0, 2, 4, 8, 10, 12, 14, 18, 20, 22] and minute == 5 and sec < 30:
+            gc.collect()
