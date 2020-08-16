@@ -1,18 +1,18 @@
-"""
-This file should be uploaded to MCU as 'boot.py.' It will run every time the MCU is booted.
-"""
-
-
-
-# This file is executed on every boot (including wake-boot from deepsleep)
-from machine import RTC, PWM, Pin, Timer
+from machine import RTC
 import network
 import utime
 from LCD import CharLCD
 import gc
 import urequests
 import ujson
-import df
+from tide_class import Tide, LcdColor
+
+NETWORKS = {
+    'BIGUS': 'OzoF32*kMJ3gYdCqxmwpxnU&$@*2xM1o',
+    'Copperhead': '9197341930',
+    'copperhead': '9197341930',
+    'Las Palmas': 'pollywolly'
+}
 
 
 def _check_networks():
@@ -20,8 +20,8 @@ def _check_networks():
     global wlan
     my_avail_nets = []
     avail_nets = wlan.scan()
-    global networks
-    for name in networks.keys(): # loop through my nets
+    global NETWORKS
+    for name in NETWORKS.keys():  # loop through my nets
         for net in avail_nets:
             if net[0].decode('utf-8') == name:
                 my_avail_nets.append(name)
@@ -34,16 +34,16 @@ def _timed_connect(net_name):
     start_time = utime.time()
     if not wlan.isconnected():
         print('connecting to network...')
-        wlan.connect(net_name, networks[net_name])
+        wlan.connect(net_name, NETWORKS[net_name])
         while not wlan.isconnected():
             if (utime.time() - start_time) > 15:  # try for 15 seconds then abort
-                return False # if still in loop at 15 seconds will return False
-    return True # returns True if above statement evals to True
+                return False  # if still in loop at 15 seconds will return False
+    return True  # returns True if above statement evals to True
 
 
 def wifi_connect(close_nets):
     """Connect to wifi AP at beach"""
-    global networks
+    global NETWORKS
 
     if len(close_nets) == 0:
         return "You've passed no nets to connect to."
@@ -61,37 +61,39 @@ def wifi_connect(close_nets):
 def network_disp():
     """Displays ssid, ip, and gateway info"""
     # TODO: Add printing which wifi the device is connected to
+    global color, text
+
     ip, _, gateway, _ = wlan.ifconfig()
 
     # display ssid
-    df.color_lcd('teal')
-    lcd.clear()
-    lcd.message('SSID:')
-    lcd.set_line(1)
-    lcd.message(wlan.config('essid'))
+    color.color_lcd('teal')
+    text.clear()
+    text.message('SSID:')
+    text.set_line(1)
+    text.message(wlan.config('essid'))
     utime.sleep(2)
-    df.color_lcd('black')
+    color.color_lcd('black')
 
     # display IP address
-    df.color_lcd('red')
-    lcd.clear()
-    lcd.message('IP address:')
-    lcd.set_line(1)
-    lcd.message(ip)
+    color.color_lcd('red')
+    text.clear()
+    text.message('IP address:')
+    text.set_line(1)
+    text.message(ip)
     utime.sleep(2)
-    df.color_lcd('black')
+    color.color_lcd('black')
 
     # display router address
-    df.color_lcd('blue')
-    lcd.clear()
-    lcd.message('Router address:')
-    lcd.set_line(1)
-    lcd.message(gateway)
+    color.color_lcd('blue')
+    text.clear()
+    text.message('Router address:')
+    text.set_line(1)
+    text.message(gateway)
     utime.sleep(2)
-    df.color_lcd('black')
+    color.color_lcd('black')
 
     # clear display
-    lcd.clear()
+    text.clear()
 
 
 def set_rtc():
@@ -116,41 +118,48 @@ def set_rtc():
             return False
 
 
-def trim_master():
-    """Used to trim list in master dictionary"""
-    global station_data
-
-    for station, tide_list in station_data.items():
-        if tide_list[1][1] < utime.time():
-            update_list = df.trim_list(tide_list)
-            station_data.update({station: update_list})
+def pad_date(val):
+    """adds a zero to date if single digit"""
+    if val < 10:
+        return '0' + str(val)
+    else:
+        return str(val)
 
 
-def tide_update():
-    """Updates tide data from NOAA"""
-    print("Tide time trigger update")
-    global station_data
+def tide_display(station):
+    """Will use the tide list to display the current tide status"""
+    global color, text
 
-    for name in station_data.keys():
-        tide_resp = df.get_tides(name, lcd) # pin0, pin2
-        if type(tide_resp) == dict:
-            station_data.update(tide_resp)
+    _, _, _, hr_1, min_1, _, _, _ = utime.localtime(station.tide_list[0][1])
+    _, _, _, hr_2, min_2, _, _, _ = utime.localtime(station.tide_list[1][1])
+    first_time = pad_date(hr_1) + pad_date(min_1)
+    second_time = pad_date(hr_2) + pad_date(min_2)
 
+    if station.tide_list[0][0] == 'H':
+        color.color_lcd('blue')
+        text.clear()
+        text.message(station.title, 2)
+        text.set_line(1)
+        text.message('Hi:{}  Lo:{}'.format(first_time, second_time))
+        station.trim_list()
+        utime.sleep(6)
+        text.clear()
+        color.color_lcd('black')
+    elif station.tide_list[0][0] == 'L':
+        color.color_lcd('green')
+        text.clear()
+        text.message(station.title, 2)
+        text.set_line(1)
+        text.message('Lo:{}  Hi:{}'.format(first_time, second_time))
+        station.trim_list()
+        utime.sleep(6)
+        text.clear()
+        color.color_lcd('black')
 
 
 if __name__ == '__main__':
     print("\nBooting from boot.py")
-    #pin0 = Pin(0, Pin.OUT)
-    #pin2 = Pin(2, Pin.OUT)
-    #pin0.value(1)
-    #pin2.value(1)
 
-    networks = {
-        'BIGUS': 'OzoF32*kMJ3gYdCqxmwpxnU&$@*2xM1o',
-        'Copperhead': '9197341930',
-        'copperhead': '9197341930',
-        'Las Palmas': 'pollywolly'
-    }
     # Setup network
     ap = network.WLAN(network.AP_IF)
     ap.active(False)
@@ -159,12 +168,8 @@ if __name__ == '__main__':
     wlan.active(True)
 
     # instantiates for text
-    lcd = CharLCD(rs=4, en=5, d4=15, d5=0, d6=16, d7=2)
-
-    # instances of PWM pins for LCD color
-    green_pin = PWM(Pin(12), freq=1000, duty=1000)
-    blue_pin = PWM(Pin(14), freq=1000, duty=1000)
-    red_pin = PWM(Pin(13), freq=1000, duty=1000)
+    text = CharLCD(rs=4, en=5, d4=15, d5=0, d6=16, d7=2)
+    color = LcdColor()
 
     print("Attempting network connection")
     wifi_connect(_check_networks())
@@ -173,18 +178,18 @@ if __name__ == '__main__':
     set_rtc()
     gc.collect()
 
-    # list of tuples is payload for each key
-    station_data = {'bogue': None, 'spooners': None, 'beaufort': None}
+    bogue = Tide('bogue')
+    bogue.get_tides()
+    spooners = Tide('spooners')
+    spooners.get_tides()
+    beaufort = Tide('beaufort')
+    beaufort.get_tides()
 
-    for name in station_data.keys():
-        tide_resp = df.get_tides(name, lcd) # pin0, pin2
-        if type(tide_resp) == dict:
-            station_data.update(tide_resp)
+    station_list = [bogue, spooners, beaufort]
 
-    while True:
-        df.tide_display(station_data, lcd) # pin0, pin2
-        for name in station_data.keys():
-            trim_master()
+    while True:  # Need to work over the below script, pulled in but not yet functional
+        for station in station_list:
+            tide_display(station)
 
         _, _, _, hr, minute, sec, _, _ = utime.localtime()
 
@@ -200,8 +205,10 @@ if __name__ == '__main__':
             if not wlan.isconnected():
                 wifi_connect()
             print("Periodic tide update")
-            tide_update()
+            for station in station_list:
+                station.get_tides()
 
+        # Manual garbage collection
         if hr in [0, 2, 4, 8, 10, 12, 14, 18, 20, 22] and minute == 5 and sec < 30:
             print(utime.localtime())
             gc.collect()

@@ -20,7 +20,7 @@ import utime
 from LCD import CharLCD
 from machine import Pin, PWM, RTC
 
-def get_tides(station, lcd, pin0):
+def get_tides(station, lcd): # pin0, pin2
     """Hits api for 3 days of tides, returns a list of tuples w/ hi/lo and timestamp"""
     url_dict = {
         'beaufort': 'https://tidesandcurrents.noaa.gov/api/datagetter?product=predictions&application=NOS.COOPS.TAC.WL&begin_date={}{}{}&range=72&datum=MLLW&station=8656483&time_zone=lst_ldt&units=english&interval=hilo&format=json',
@@ -42,7 +42,8 @@ def get_tides(station, lcd, pin0):
     lcd.message("Getting tides:")
     lcd.set_line(1)
     lcd.message(station)
-    pin0.value(1)
+    #pin0.value(1)
+    #pin2.value(1)
 
     resp = urequests.get(url_dict[station].format(yr_str, mo_str, dy_str))
 
@@ -91,7 +92,7 @@ def _tide_resp_to_list(resp_content):
     return resp_list
 
 
-def tide_display(tide_dict, lcd, pin0):
+def tide_display(tide_dict, lcd): # , pin0, pin2
     """Will use the tide list to display the current tide status"""
     station_formal = {
         'bogue': 'Bogue Inlet',
@@ -110,13 +111,14 @@ def tide_display(tide_dict, lcd, pin0):
         min_2 = _pad_date(min_2)
 
         if tide_dict[station][0][0] == 'H':
-            color_lcd('yellow')
+            color_lcd('blue')
             lcd.clear
             lcd.message(station_formal[station], 2)
             lcd.set_line(1)
             lcd.message('Hi:{}{}  Lo:{}{}'.format(hr_1, min_1, hr_2, min_2))
-            pin0.value(1)
-            utime.sleep(6)
+            #pin0.value(1)
+            #pin2.value(1)
+            utime.sleep(7)
             lcd.clear()
             color_lcd('black')
         elif tide_dict[station][0][0] == 'L':
@@ -125,8 +127,9 @@ def tide_display(tide_dict, lcd, pin0):
             lcd.message(station_formal[station], 2)
             lcd.set_line(1)
             lcd.message('Lo:{}{}  Hi:{}{}'.format(hr_1, min_1, hr_2, min_2))
-            pin0.value(1)
-            utime.sleep(6)
+            #pin0.value(1)
+            #pin2.value(1)
+            utime.sleep(7)
             lcd.clear()
             color_lcd('black')
 
@@ -160,4 +163,4 @@ def color_lcd(color):
         green_pin.duty(color[1])
         blue_pin.duty(color[2])
     else:
-        print('Entry not recognized, enter valid color, or RGB tuple')d
+        print('Entry not recognized, enter valid color, or RGB tuple')
