@@ -3,9 +3,9 @@ import network
 import utime
 from LCD import CharLCD
 import gc
-import urequests
+from display_files import urequests
 import ujson
-from tide_class import Tide, LcdColor
+from display_files.tide_class import Tide, LcdColor
 
 NETWORKS = {
     'BIGUS': 'OzoF32*kMJ3gYdCqxmwpxnU&$@*2xM1o',

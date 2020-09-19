@@ -1,23 +1,16 @@
-"""
-This file should be uploaded to MCU as 'boot.py.' It will run every time the MCU is booted.
-"""
-
-
-
 # This file is executed on every boot (including wake-boot from deepsleep)
-from machine import RTC, PWM, Pin, Timer
+from machine import RTC, PWM, Pin
 import network
 import utime
 from LCD import CharLCD
 import gc
-import urequests
+from display_files import urequests
 import ujson
 import df
 
 
 def _check_networks():
     """Checks wifi networks in range and produces an intersection of sets on programmed networks"""
-    global wlan
     my_avail_nets = []
     avail_nets = wlan.scan()
     global networks
@@ -116,34 +109,17 @@ def set_rtc():
             return False
 
 
-def trim_master():
+def trim_master(station):
     """Used to trim list in master dictionary"""
     global station_data
 
     for station, tide_list in station_data.items():
         if tide_list[1][1] < utime.time():
             update_list = df.trim_list(tide_list)
-            station_data.update({station: update_list})
-
-
-def tide_update():
-    """Updates tide data from NOAA"""
-    print("Tide time trigger update")
-    global station_data
-
-    for name in station_data.keys():
-        tide_resp = df.get_tides(name, lcd) # pin0, pin2
-        if type(tide_resp) == dict:
-            station_data.update(tide_resp)
-
-
+            station_data.update({station, update_list})
 
 if __name__ == '__main__':
     print("\nBooting from boot.py")
-    #pin0 = Pin(0, Pin.OUT)
-    #pin2 = Pin(2, Pin.OUT)
-    #pin0.value(1)
-    #pin2.value(1)
 
     networks = {
         'BIGUS': 'OzoF32*kMJ3gYdCqxmwpxnU&$@*2xM1o',
@@ -177,31 +153,10 @@ if __name__ == '__main__':
     station_data = {'bogue': None, 'spooners': None, 'beaufort': None}
 
     for name in station_data.keys():
-        tide_resp = df.get_tides(name, lcd) # pin0, pin2
-        if type(tide_resp) == dict:
-            station_data.update(tide_resp)
+        station_data.update(df.get_tides(name, lcd))
 
     while True:
-        df.tide_display(station_data, lcd) # pin0, pin2
+        df.tide_display(station_data, lcd)
         for name in station_data.keys():
-            trim_master()
-
-        _, _, _, hr, minute, sec, _, _ = utime.localtime()
-
-        # Attempt rtc update every 8 hours
-        if hr in [0, 2, 4, 8, 10, 12, 14, 18, 20, 22] and minute == 0 and sec < 30:
-            if not wlan.isconnected():
-                wifi_connect()
-            print("Periodic time update")
-            set_rtc()
-
-        # Attempt tide update every 6 hours
-        if hr in [0, 2, 4, 8, 10, 12, 14, 18, 20, 22] and minute == 10 and sec < 30:
-            if not wlan.isconnected():
-                wifi_connect()
-            print("Periodic tide update")
-            tide_update()
-
-        if hr in [0, 2, 4, 8, 10, 12, 14, 18, 20, 22] and minute == 5 and sec < 30:
-            print(utime.localtime())
-            gc.collect()
+            print("Trimming")
+            trim_master(name)

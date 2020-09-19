@@ -13,12 +13,11 @@ Learn async to allow work to continue while screen is static
 Clean up issues with failed updates
 """
 
-
-import urequests
+from display_files import urequests
 import ujson
 import utime
-from LCD import CharLCD
-from machine import Pin, PWM, RTC
+from machine import Pin, PWM
+
 
 def get_tides(station, lcd): # pin0, pin2
     """Hits api for 3 days of tides, returns a list of tuples w/ hi/lo and timestamp"""

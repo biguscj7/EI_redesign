@@ -1,5 +1,4 @@
-import urequests
-import network
+from display_files import urequests
 import ujson
 import utime
 from machine import Pin, PWM
