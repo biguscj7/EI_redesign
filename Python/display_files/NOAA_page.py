@@ -1,3 +1,22 @@
+"""
+Working file currently for RPI Zero.
+
+Functions:
+Pulls last 24 hours of data from NOAA and trims to 12 hour dataframes
+Accomplishing a five minute refresh on data from NOAA
+Generates a 3 graph pack of temp / baro pressure / tide on left side
+Single polar graph on right with 12 hour wind history
+
+
+Improvements TODO:
+Add 7 day hi/low from Beaufort station
+Include tide predictions for Bogue inlet
+Generate 'predictions graph' for 12 hr window with 'now' centered
+Determine how to incorporate 'local' tide data with sensor
+
+"""
+
+
 import pandas as pd
 import time
 import requests
@@ -44,7 +63,7 @@ app.layout = html.Div([
             dcc.Graph(id='g1'),
             dcc.Interval(
                 id='int_g1',
-                interval=120 * 1000,  # in milliseconds
+                interval=300 * 1000,  # in milliseconds
                 n_intervals=0
             )
         ], className="six columns"),
@@ -54,7 +73,7 @@ app.layout = html.Div([
             dcc.Graph(id='g2'),
             dcc.Interval(
                 id='int_g2',
-                interval=120 * 1000,  # in milliseconds
+                interval=300 * 1000,  # in milliseconds
                 n_intervals=0
             )
         ], className="six columns"),
@@ -63,16 +82,17 @@ app.layout = html.Div([
 
 def get_data(product):
     """uses current time to pull last 24 hours of wind / temp / pressure / tide data from beaufort marine lab"""
-    yr, mo, dy, _, _, _, _, _, _ = time.localtime()
-    yr_str = str(yr)
-    mo_str = _pad_date(mo)
-    dy_str = _pad_date(dy)
+# times not needed, can just pull last __ hours based on request time
+#    yr, mo, dy, _, _, _, _, _, _ = time.localtime()
+#    yr_str = str(yr)
+#    mo_str = _pad_date(mo)
+#    dy_str = _pad_date(dy)
 
     url_dict = {
-        'wind': f'https://tidesandcurrents.noaa.gov/api/datagetter?product=wind&application=NOS.COOPS.TAC.WL&begin_date={yr_str}{mo_str}{dy_str}&range=48&station=8656483&time_zone=lst_ldt&units=english&interval=6&format=json',
-        'temp': f'https://tidesandcurrents.noaa.gov/api/datagetter?product=air_temperature&application=NOS.COOPS.TAC.WL&begin_date={yr_str}{mo_str}{dy_str}&range=48&station=8656483&time_zone=lst_ldt&units=english&interval=6&format=json',
-        'press': f'https://tidesandcurrents.noaa.gov/api/datagetter?product=air_pressure&application=NOS.COOPS.TAC.WL&begin_date={yr_str}{mo_str}{dy_str}&range=48&station=8656483&time_zone=lst_ldt&units=english&interval=6&format=json',
-        'tide': f'https://tidesandcurrents.noaa.gov/api/datagetter?product=water_level&application=NOS.COOPS.TAC.WL&begin_date={yr_str}{mo_str}{dy_str}&range=48&datum=MSL&station=8656483&time_zone=lst_ldt&units=english&format=json',
+        'wind': f'https://tidesandcurrents.noaa.gov/api/datagetter?product=wind&application=NOS.COOPS.TAC.WL&range=24&station=8656483&time_zone=lst_ldt&units=english&interval=6&format=json',
+        'temp': f'https://tidesandcurrents.noaa.gov/api/datagetter?product=air_temperature&application=NOS.COOPS.TAC.WL&range=24&station=8656483&time_zone=lst_ldt&units=english&interval=6&format=json',
+        'press': f'https://tidesandcurrents.noaa.gov/api/datagetter?product=air_pressure&application=NOS.COOPS.TAC.WL&range=24&station=8656483&time_zone=lst_ldt&units=english&interval=6&format=json',
+        'tide': f'https://tidesandcurrents.noaa.gov/api/datagetter?product=water_level&application=NOS.COOPS.TAC.WL&range=24&datum=MSL&station=8656483&time_zone=lst_ldt&units=english&format=json',
     }
 
     connection = False
@@ -108,7 +128,7 @@ def resp_to_df(content):
 
 @app.callback(Output('g2', 'figure'),
               [Input('int_g2', 'n_intervals')])
-def create_wind_plot(n): # not sure what the unused argument does
+def create_wind_plot(n):
     """Creates the figure/plot of wind data"""
     wind_df = resp_to_df(get_data('wind'))
 
@@ -140,7 +160,7 @@ def create_wind_plot(n): # not sure what the unused argument does
 
 @app.callback(Output('g1', 'figure'),
               [Input('int_g1', 'n_intervals')])
-def create_wx_tide_plot(n): # not sure what the unused argument does, but was in the example
+def create_wx_tide_plot(n):
     """Creates the 3 element plot for temp/pressure/tide"""
     temp_df = resp_to_df(get_data('temp'))
     tide_df = resp_to_df(get_data('tide'))
@@ -153,14 +173,14 @@ def create_wx_tide_plot(n): # not sure what the unused argument does, but was in
     fig.add_trace(go.Scatter(x=temp_df['t'], y=temp_df['v'], name='Temp', line_color='orange'),
                   row=1, col=1)
 
-    fig.update_yaxes(range=[40, 100],
+    fig.update_yaxes(#range=[40, 100],
                      row=1, col=1,
                      title="Degrees F")
 
     fig.add_trace(go.Scatter(x=press_df['t'], y=press_df['v'], name='Pressure', line_color='green'),
                   row=2, col=1)
 
-    fig.update_yaxes(range=[28, 31],
+    fig.update_yaxes(#range=[28, 31],
                      row=2, col=1,
                      tickformat='.2f',
                      title="inches Hg")
@@ -168,7 +188,7 @@ def create_wx_tide_plot(n): # not sure what the unused argument does, but was in
     fig.add_trace(go.Scatter(x=tide_df['t'], y=tide_df['v'], name='Tide Level', line_color='blue'),
                   row=3, col=1)
 
-    fig.update_yaxes(range=[-10, 10],
+    fig.update_yaxes(#range=[-10, 10],
                      row=3, col=1,
                      title="ft MSL")
 
